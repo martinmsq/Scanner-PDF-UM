@@ -1,21 +1,33 @@
+import os
 import pdfplumber
 import re
 import io
+import smtplib
 from datetime import datetime
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
+from email.message import EmailMessage
+from dotenv import load_dotenv
 
-SCOPES = ['https://www.googleapis.com/auth/drive']
-SERVICE_ACCOUNT_FILE = 'credentials.json'
-ID_ARCHIVO_DRIVE = '12cJGuHveP0MXAaLTJZg64HoiDK8pH_jw'
+load_dotenv()
+
+scope = os.getenv('SCOPES')
+service_account_file = os.getenv('SERVICE_ACCOUNT_FILE')
+id_archivo_drive = os.getenv('ID_ARCHIVO_DRIVE')
+
+email = os.getenv('EMAIL')
+password = os.getenv('PASSWORD')
+smtp_server = os.getenv('SMTP_SERVER')
+smtp_port = os.getenv('SMTP_PORT')
+
 
 def extract_pdf():
     credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        service_account_file, scopes=[scope])
     service = build('drive', 'v3', credentials=credentials)
 
-    request = service.files().get_media(fileId=ID_ARCHIVO_DRIVE)
+    request = service.files().get_media(fileId=id_archivo_drive)
     local_file = io.BytesIO()
     downloader = MediaIoBaseDownload(local_file, request)
 
@@ -26,6 +38,7 @@ def extract_pdf():
     local_file.seek(0)
     service.close()
     return local_file
+
 
 def extract_dates(path):
     pattern_period = r"Período:\s*(\d{1,2}/\d{4})"
@@ -50,20 +63,38 @@ def extract_dates(path):
         return period
 
 
+def send_email(message):
+
+    # Create message
+    msg = EmailMessage()
+    msg['From'] = email
+    msg['To'] = email
+    msg['Subject'] = 'Vencimiento de arancel UM'
+    msg.set_content(message)
+
+    # Create an SMTP session
+    with smtplib.SMTP_SSL(smtp_server, int(smtp_port)) as server:
+        server.login(email, password)
+        server.send_message(msg)
+    print('Email send successfully!!')
+
+
 def check_date(path):
     today = datetime.now().date()
     for period, date_amount in extract_dates(path).items():
         expiration = 1
         for date, amount in date_amount:
             new_date = datetime.strptime(date, "%d/%m/%Y").date()
-            if (new_date - today).days == 7:
-                print(period + " Vencimiento: "+ str(expiration) + " Fecha: " + date + " Importe:" + amount + " a una semana de vencer...")
+            if (new_date - today).days == 14:
+                message = period + " Vencimiento: " + str(expiration) + " Fecha: " + date + " Importe:" + amount + " a una semana de vencer..."
+                send_email(message)
             expiration += 1
 
 
 def main():
     file = extract_pdf()
     check_date(file)
+
 
 if __name__ == "__main__":
     main()
