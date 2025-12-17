@@ -1,7 +1,31 @@
 import pdfplumber
 import re
+import io
 from datetime import datetime
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
 
+SCOPES = ['https://www.googleapis.com/auth/drive']
+SERVICE_ACCOUNT_FILE = 'credentials.json'
+ID_ARCHIVO_DRIVE = '12cJGuHveP0MXAaLTJZg64HoiDK8pH_jw'
+
+def extract_pdf():
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    service = build('drive', 'v3', credentials=credentials)
+
+    request = service.files().get_media(fileId=ID_ARCHIVO_DRIVE)
+    local_file = io.BytesIO()
+    downloader = MediaIoBaseDownload(local_file, request)
+
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+
+    local_file.seek(0)
+    service.close()
+    return local_file
 
 def extract_dates(path):
     pattern_period = r"Período:\s*(\d{1,2}/\d{4})"
@@ -32,15 +56,14 @@ def check_date(path):
         expiration = 1
         for date, amount in date_amount:
             new_date = datetime.strptime(date, "%d/%m/%Y").date()
-            if (new_date - today).days == 17:
+            if (new_date - today).days == 7:
                 print(period + " Vencimiento: "+ str(expiration) + " Fecha: " + date + " Importe:" + amount + " a una semana de vencer...")
             expiration += 1
 
 
 def main():
-    path = "document.pdf"
-    check_date(path)
-
+    file = extract_pdf()
+    check_date(file)
 
 if __name__ == "__main__":
     main()
