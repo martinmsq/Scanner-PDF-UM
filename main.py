@@ -76,7 +76,6 @@ def send_email(message):
     with smtplib.SMTP_SSL(smtp_server, int(smtp_port)) as server:
         server.login(email, password)
         server.send_message(msg)
-    print('Email send successfully!!')
 
 
 def check_date(path):
@@ -85,8 +84,9 @@ def check_date(path):
         expiration = 1
         for date, amount in date_amount:
             new_date = datetime.strptime(date, "%d/%m/%Y").date()
-            if (new_date - today).days == 14:
-                message = period + " Vencimiento: " + str(expiration) + " Fecha: " + date + " Importe:" + amount + " a una semana de vencer..."
+            if (new_date - today).days == 7:
+                message = (period + " Vencimiento: " + str(expiration) + " Fecha: " + date + " Importe:" + amount +
+                           " a una semana de vencer...")
                 send_email(message)
             expiration += 1
 
