@@ -1,0 +1,40 @@
+name: Monitor de Vencimientos UM
+
+on:
+  schedule:
+    # 8:00 AM Argentina es 11:00 UTC
+    - cron: '0 11 * * *'
+  # Permite ejecutarlo manualmente para probar
+  workflow_dispatch:
+
+jobs:
+  check-script:
+    runs-on: ubuntu-slim
+
+    steps:
+      - name: Check repository
+        uses: actions/checkout@v5
+
+      - name: Config Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Crete file credentials
+        run: echo "${{ secrets.SERVICE_ACCOUNT_FILE }}" | base64 --decode > credentials.json
+
+      - name: Install dependencies
+        run: | 
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run script
+        env:
+          SERVICE_ACCOUNT_FILE: 'credentials.json'
+          SCOPES: ${{ vars.SCOPE }}
+          ID_ARCHIVO_DRIVE: ${{ vars.ID_ARCHIVO_DRIVE }}
+          EMAIL: ${{ vars.EMAIL }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          SMTP_SERVER: ${{ vars.SMTP_SERVER }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+        run: python main.py
